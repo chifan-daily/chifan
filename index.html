@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+<meta name="theme-color" content="#FF7A45" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<title>今天吃什么</title>
+<style>
+  :root{
+    --bg:#FFF7F2; --card:#FFFFFF; --ink:#2B2118; --muted:#9A8C80;
+    --brand:#FF7A45; --brand2:#FFB03A; --line:#F1E5DA; --ok:#3AA675;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    background:radial-gradient(130% 80% at 50% 0%,#FFE7D6 0%,var(--bg) 52%,#FFF9F5 100%);
+    color:var(--ink);display:flex;justify-content:center;-webkit-font-smoothing:antialiased;
+  }
+  .app{
+    width:100%;max-width:460px;min-height:100vh;min-height:100dvh;
+    display:flex;flex-direction:column;
+    padding:calc(10px + env(safe-area-inset-top)) 16px calc(14px + env(safe-area-inset-bottom));
+  }
+
+  /* 顶栏 */
+  .locbar{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);min-height:26px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);flex:0 0 auto;box-shadow:0 0 0 3px rgba(58,166,117,.14)}
+  .dot.bad{background:#E2574C;box-shadow:0 0 0 3px rgba(226,87,76,.14)}
+  #locText{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .mini{border:1px solid var(--line);background:#fff;color:var(--muted);font-size:12px;padding:4px 10px;border-radius:99px;cursor:pointer;font-family:inherit}
+  .mini:active{transform:scale(.96)}
+  .gear{padding:4px 8px;font-size:13px;line-height:1}
+
+  h1{
+    font-size:26px;margin:14px 0 4px;letter-spacing:-.5px;font-weight:800;
+    background:linear-gradient(100deg,var(--brand),var(--brand2));
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .sub{margin:0 0 12px;font-size:12.5px;color:var(--muted)}
+
+  /* 筛选 chips */
+  .chips{display:flex;gap:6px;overflow-x:auto;padding:0 0 8px;scrollbar-width:none}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{
+    flex:0 0 auto;border:1px solid var(--line);background:#fff;color:#8A7264;
+    font-size:12px;padding:6px 12px;border-radius:99px;cursor:pointer;font-family:inherit;
+    white-space:nowrap;transition:.15s;
+  }
+  .chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .chips.cost .chip.on{background:var(--brand);border-color:var(--brand)}
+  .chip-label{flex:0 0 auto;font-size:11.5px;color:#BCA697;align-self:center;padding-right:2px}
+
+  /* 舞台 */
+  main{flex:1;display:flex;align-items:flex-start;justify-content:center;padding:14px 0 10px;min-height:0}
+  .empty{text-align:center;color:var(--muted);animation:fade .4s ease;margin:auto 0}
+  .bowl{font-size:60px;line-height:1;margin-bottom:12px;animation:bob 3s ease-in-out infinite}
+  .empty p{margin:0;font-size:14px;line-height:1.8}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  .card{
+    width:100%;background:var(--card);border-radius:22px;padding:20px 18px 16px;
+    box-shadow:0 12px 36px -14px rgba(180,110,60,.28),0 2px 8px -2px rgba(180,110,60,.10);
+    border:1px solid rgba(255,255,255,.9);
+    animation:pop .38s cubic-bezier(.2,1.2,.4,1);
+  }
+  @keyframes pop{from{opacity:0;transform:scale(.94) translateY(10px)}to{opacity:1;transform:none}}
+
+  .label{font-size:11.5px;color:#C0A794;letter-spacing:1.5px;font-weight:600}
+  .dish-name{
+    font-size:34px;font-weight:800;letter-spacing:-.8px;line-height:1.2;
+    margin:6px 0 6px;word-break:break-word;min-height:41px;
+  }
+  .card.rolling .dish-name{color:var(--brand)}
+  .card.rolling .dish-meta,
+  .card.rolling .shops,
+  .card.rolling .hint{visibility:hidden}
+  .dish-meta{font-size:12.5px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .tick{color:var(--brand);font-weight:700}
+
+  .shops{margin-top:16px;padding-top:14px;border-top:1px dashed var(--line);display:flex;flex-direction:column;gap:8px}
+  .shop{
+    display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:13px;
+    background:#FCF7F3;cursor:pointer;transition:background .15s;
+  }
+  .shop:active{background:#F7EDE5}
+  .shop-info{flex:1;min-width:0}
+  .shop-name{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .shop-sub{font-size:11.5px;color:var(--muted);margin-top:3px;display:flex;gap:8px;flex-wrap:wrap}
+  .shop-sub b{font-weight:600;color:#B8592A}
+  .shop-go{
+    flex:0 0 auto;border:none;background:#fff;color:var(--brand);font-size:11.5px;font-weight:700;
+    padding:7px 11px;border-radius:9px;cursor:pointer;font-family:inherit;box-shadow:0 1px 4px rgba(0,0,0,.05);
+  }
+  .shop-empty{
+    font-size:12.5px;color:#C0A794;text-align:center;
+    padding:20px 12px;line-height:1.7;
+    background:#FCF7F3;border-radius:13px;
+  }
+  .hint{margin-top:12px;font-size:11.5px;color:#C0A794;text-align:center;line-height:1.6}
+
+  /* 底部按钮 */
+  .foot{display:flex;gap:9px;margin-top:4px}
+  .btn{
+    border:none;font-family:inherit;font-weight:800;color:#fff;border-radius:17px;cursor:pointer;
+    font-size:16.5px;padding:16px;flex:1;
+    background:linear-gradient(100deg,var(--brand),var(--brand2));
+    box-shadow:0 14px 30px -14px rgba(255,110,60,.85);
+    transition:transform .12s,box-shadow .2s;
+  }
+  .btn:active{transform:translateY(2px) scale(.99)}
+  .btn:disabled{opacity:.62;cursor:default;transform:none}
+  .btn.ghost{flex:0 0 96px;background:#fff;color:#8A7264;font-size:14px;box-shadow:0 2px 10px rgba(180,110,60,.10)}
+  .btn.ghost:active{transform:scale(.97)}
+  .btn.done{background:linear-gradient(100deg,#3AA675,#5FC48F);box-shadow:0 14px 30px -14px rgba(58,166,117,.8)}
+
+  /* 弹层 */
+  .mask{position:fixed;inset:0;background:rgba(43,33,24,.42);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:22px;z-index:50}
+  .mask[hidden]{display:none}
+  .sheet{background:#fff;border-radius:20px;padding:22px 20px;width:100%;max-width:360px;animation:pop .26s cubic-bezier(.2,1.2,.4,1)}
+  .sheet h2{margin:0 0 6px;font-size:17px}
+  .sheet .hint2{margin:0 0 14px;font-size:12.5px;color:var(--muted);line-height:1.7}
+  .sheet label{display:block;font-size:12.5px;color:var(--muted);margin:12px 0 6px}
+  .sheet input{width:100%;border:1px solid var(--line);border-radius:11px;padding:12px;font-size:14px;font-family:inherit;background:#FDFAF8;color:var(--ink);outline:none}
+  .sheet input:focus{border-color:var(--brand);background:#fff}
+  .sheet .row{display:flex;gap:8px;margin-top:18px}
+  .sheet .row button{flex:1;border:none;font-family:inherit;font-size:14px;font-weight:600;padding:12px;border-radius:12px;cursor:pointer}
+
+  #prefMask{align-items:flex-end;padding:0}
+  .drawer{
+    width:100%;max-width:520px;background:#fff;border-radius:22px 22px 0 0;
+    padding:6px 20px calc(18px + env(safe-area-inset-bottom));
+    max-height:88vh;overflow-y:auto;
+    animation:slideUp .3s cubic-bezier(.2,1,.3,1);
+    box-shadow:0 -10px 40px -20px rgba(120,80,50,.4);
+  }
+  @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+  .handle{width:36px;height:4px;border-radius:99px;background:#EADFD5;margin:8px auto 12px}
+  .drawer-head{display:flex;align-items:center;justify-content:space-between}
+  .drawer-head h2{margin:0;font-size:18px}
+  .sec-title{font-size:12px;color:#B9A597;font-weight:600;letter-spacing:.6px;margin:18px 0 9px}
+  .drawer-foot{margin-top:22px}
+  .drawer-foot .confirm{
+    width:100%;border:none;font-family:inherit;font-size:15.5px;font-weight:800;color:#fff;
+    background:linear-gradient(100deg,var(--brand),var(--brand2));
+    padding:16px;border-radius:16px;cursor:pointer;
+    box-shadow:0 12px 26px -14px rgba(255,110,60,.85);
+  }
+  .drawer-foot .confirm:active{transform:scale(.99)}
+  .opts{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 14px}
+  .opt{
+    border:1px dashed var(--line);background:#F8F3EE;color:#BFB0A4;font-size:13px;
+    padding:9px 14px;border-radius:11px;cursor:pointer;font-family:inherit;transition:.15s;
+  }
+  .opt:active{transform:scale(.96)}
+  .opt.on{background:#FFF0E4;color:#C0612F;border-color:#FFC9A8;border-style:solid;font-weight:600}
+  .opt.on::after{content:' ✓';font-size:11px;opacity:.85}
+  .pref-tools{display:flex;align-items:center;gap:14px;margin:0 0 4px}
+  .link{border:none;background:none;color:var(--brand);font-size:12.5px;cursor:pointer;font-family:inherit;padding:2px}
+  .link:active{opacity:.6}
+  .spacer{flex:1}
+  .pref-count{font-size:12px;color:var(--muted)}
+  #openPref b{font-weight:700;color:var(--brand)}
+
+  .cancel{background:#F5EFEA;color:#8A7264}
+  .confirm{background:linear-gradient(100deg,var(--brand),var(--brand2));color:#fff}
+
+  #toast{
+    position:fixed;left:50%;bottom:96px;transform:translate(-50%,14px);
+    background:rgba(43,33,24,.92);color:#fff;font-size:13px;padding:11px 18px;border-radius:99px;
+    opacity:0;pointer-events:none;transition:.26s;z-index:80;max-width:82vw;text-align:center;line-height:1.5;
+  }
+  #toast.show{opacity:1;transform:translate(-50%,0)}
+
+  .demo-note{font-size:11.5px;color:#B8592A;background:#FFF3EA;border:1px dashed #FFD2BB;padding:7px 12px;border-radius:10px;margin:8px 0 0;line-height:1.6}
+  .demo-note[hidden]{display:none}
+
+  @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms !important;transition-duration:.01ms !important}}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="locbar">
+    <span class="dot" id="locDot"></span>
+    <span id="locText">定位中…</span>
+    <button class="mini" id="openPref">筛选 <b id="prefCount">12</b></button>
+    <button class="mini" id="relocate">切换</button>
+    <button class="mini gear" id="openSet" title="设置">⚙</button>
+  </div>
+
+  <h1>今天吃什么</h1>
+  <p class="sub" id="sub">先定吃什么，再找哪家店</p>
+
+  <div class="demo-note" id="demoNote" hidden>
+    还没配置高德 Key，当前是演示数据。点右上角 ⚙ 填入 Key。
+  </div>
+
+  <main>
+    <div class="empty" id="empty">
+      <div class="bowl">🍚</div>
+      <p>别再纠结了<br>点一下，直接告诉你吃什么</p>
+    </div>
+
+    <div class="card" id="card" hidden>
+      <div class="label">今天吃这个</div>
+      <div class="dish-name" id="dName">—</div>
+      <div class="dish-meta" id="dMeta"></div>
+      <div class="shops" id="shops"></div>
+      <div class="hint" id="hint"></div>
+    </div>
+  </main>
+
+  <div class="foot">
+    <button class="btn ghost" id="eatBtn" disabled>就它了</button>
+    <button class="btn" id="rollBtn">🎲 吃什么</button>
+  </div>
+</div>
+
+<div class="mask" id="prefMask" hidden>
+  <div class="drawer">
+    <div class="handle"></div>
+
+    <div class="drawer-head">
+      <h2>筛选</h2>
+      <button class="link" id="prefCancel">关闭</button>
+    </div>
+    <p class="hint2">分类默认全选。不想吃的点一下取消，之后就不会再推。</p>
+
+    <div class="sec-title">口味分类</div>
+    <div class="opts" id="catOpts"></div>
+    <div class="pref-tools">
+      <button class="link" id="catAll">全选</button>
+      <button class="link" id="catNone">全不选</button>
+      <span class="spacer"></span>
+      <span class="pref-count" id="prefInfo">12 / 12</span>
+    </div>
+
+    <div class="sec-title">预算</div>
+    <div class="opts" id="budgetOpts">
+      <button class="opt" data-v="25">25 内</button>
+      <button class="opt on" data-v="40">40 内</button>
+      <button class="opt" data-v="60">60 内</button>
+      <button class="opt" data-v="999">不限</button>
+    </div>
+
+    <div class="drawer-foot">
+      <button class="confirm" id="prefSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="mask" id="setMask" hidden>
+  <div class="sheet">
+    <h2>设置</h2>
+    <p class="hint2">去 console.amap.com 创建「Web端(JS API)」类型的 Key，安全密钥在同一个 Key 详情里。</p>
+    <label>高德 Key</label>
+    <input id="inKey" placeholder="32 位字符串" autocomplete="off" />
+    <label>安全密钥 securityJsCode</label>
+    <input id="inSec" placeholder="32 位字符串" autocomplete="off" />
+    <div class="row">
+      <button class="cancel" id="setCancel">取消</button>
+      <button class="confirm" id="setSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="mask" id="locMask" hidden>
+  <div class="sheet">
+    <h2>你大概在哪？</h2>
+    <p class="hint2">定位没成功。输入一个地标就行，比如「望京SOHO」，只用这一次，之后会记住。</p>
+    <label>地标 / 商圈</label>
+    <input id="inLoc" placeholder="例如 望京SOHO" autocomplete="off" />
+    <div class="row">
+      <button class="cancel" id="locCancel">算了</button>
+      <button class="confirm" id="locSave">确定</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ===== 配置 ===== */
+var CONFIG = {
+  amapKey: 'cac40cb6ef32bb9144d46efbc842eed6',
+  amapSecurity: 'b10592bf1115f74c450219dfe2bdfa9d'
+};
+
+var RADIUS = 1200;          // 默认搜索半径（米）
+var RADIUS_MAX = 2200;      // 搜不到时的放宽上限
+
+/* ===== 菜品库：先定“吃什么”，再去搜店 =====
+   price 是这道菜的常见价格水位，用于按预算过滤
+   kw 是拿去高德搜的关键词
+   cat 是所属分类，见下面的 CATS */
+var DISHES = [
+  /* 川湘辣菜 */
+  { name:'麻辣香锅',     kw:'麻辣香锅', price:38, cat:'spicy' },
+  { name:'冒菜',         kw:'冒菜',     price:28, cat:'spicy' },
+  { name:'酸菜鱼',       kw:'酸菜鱼',   price:45, cat:'spicy' },
+  { name:'水煮肉片',     kw:'水煮肉片', price:42, cat:'spicy' },
+  { name:'辣子鸡',       kw:'辣子鸡',   price:45, cat:'spicy' },
+  { name:'干锅花菜',     kw:'干锅',     price:32, cat:'spicy' },
+
+  /* 粤式烧腊 */
+  { name:'烧腊双拼饭',   kw:'烧腊',     price:32, cat:'cantonese' },
+  { name:'煲仔饭',       kw:'煲仔饭',   price:28, cat:'cantonese' },
+  { name:'肠粉',         kw:'肠粉',     price:15, cat:'cantonese' },
+  { name:'白切鸡饭',     kw:'白切鸡',   price:30, cat:'cantonese' },
+  { name:'云吞面',       kw:'云吞面',   price:25, cat:'cantonese' },
+  { name:'叉烧饭',       kw:'叉烧',     price:28, cat:'cantonese' },
+
+  /* 面食 */
+  { name:'兰州牛肉面',   kw:'牛肉面',   price:20, cat:'noodle' },
+  { name:'拉面',         kw:'拉面',     price:28, cat:'noodle' },
+  { name:'重庆小面',     kw:'小面',     price:18, cat:'noodle' },
+  { name:'西红柿鸡蛋面', kw:'面馆',     price:20, cat:'noodle' },
+  { name:'炸酱面',       kw:'炸酱面',   price:22, cat:'noodle' },
+  { name:'刀削面',       kw:'刀削面',   price:24, cat:'noodle' },
+  { name:'炒面',         kw:'炒面',     price:20, cat:'noodle' },
+  { name:'拌面',         kw:'拌面',     price:20, cat:'noodle' },
+
+  /* 粉类 */
+  { name:'螺蛳粉',       kw:'螺蛳粉',   price:22, cat:'fen' },
+  { name:'酸辣粉',       kw:'酸辣粉',   price:18, cat:'fen' },
+  { name:'米线',         kw:'米线',     price:22, cat:'fen' },
+  { name:'牛肉粉',       kw:'牛肉粉',   price:20, cat:'fen' },
+  { name:'桂林米粉',     kw:'桂林米粉', price:20, cat:'fen' },
+  { name:'炒河粉',       kw:'炒河粉',   price:22, cat:'fen' },
+
+  /* 米饭快餐 */
+  { name:'黄焖鸡米饭',   kw:'黄焖鸡',   price:25, cat:'rice' },
+  { name:'隆江猪脚饭',   kw:'猪脚饭',   price:22, cat:'rice' },
+  { name:'卤肉饭',       kw:'卤肉饭',   price:22, cat:'rice' },
+  { name:'盖浇饭',       kw:'盖浇饭',   price:20, cat:'rice' },
+  { name:'木桶饭',       kw:'木桶饭',   price:24, cat:'rice' },
+  { name:'排骨米饭',     kw:'排骨米饭', price:28, cat:'rice' },
+  { name:'蛋炒饭',       kw:'炒饭',     price:18, cat:'rice' },
+  { name:'咖喱鸡饭',     kw:'咖喱',     price:30, cat:'rice' },
+
+  /* 小吃早点 */
+  { name:'包子',         kw:'包子',     price:12, cat:'snack' },
+  { name:'煎饼果子',     kw:'煎饼',     price:10, cat:'snack' },
+  { name:'手抓饼',       kw:'手抓饼',   price:12, cat:'snack' },
+  { name:'生煎包',       kw:'生煎',     price:20, cat:'snack' },
+  { name:'肉夹馍',       kw:'肉夹馍',   price:15, cat:'snack' },
+  { name:'饺子',         kw:'饺子',     price:25, cat:'snack' },
+  { name:'馄饨',         kw:'馄饨',     price:18, cat:'snack' },
+  { name:'烤冷面',       kw:'烤冷面',   price:12, cat:'snack' },
+  { name:'卷饼',         kw:'卷饼',     price:18, cat:'snack' },
+  { name:'沙县小吃',     kw:'沙县小吃', price:18, cat:'snack' },
+
+  /* 烧烤炸物 */
+  { name:'炸鸡',         kw:'炸鸡',     price:30, cat:'fried' },
+  { name:'汉堡',         kw:'汉堡',     price:28, cat:'fried' },
+  { name:'炸串',         kw:'炸串',     price:20, cat:'fried' },
+  { name:'烤串',         kw:'烧烤',     price:45, cat:'fried' },
+  { name:'鸡排',         kw:'鸡排',     price:18, cat:'fried' },
+  { name:'薯条',         kw:'薯条',     price:15, cat:'fried' },
+
+  /* 火锅麻辣烫 */
+  { name:'麻辣烫',       kw:'麻辣烫',   price:25, cat:'hotpot' },
+  { name:'麻辣火锅',     kw:'火锅',     price:85, cat:'hotpot' },
+  { name:'串串香',       kw:'串串香',   price:50, cat:'hotpot' },
+  { name:'关东煮',       kw:'关东煮',   price:18, cat:'hotpot' },
+
+  /* 日韩料理 */
+  { name:'寿司',         kw:'寿司',     price:45, cat:'asian' },
+  { name:'日式定食',     kw:'定食',     price:42, cat:'asian' },
+  { name:'石锅拌饭',     kw:'拌饭',     price:32, cat:'asian' },
+  { name:'韩式炸鸡',     kw:'韩式炸鸡', price:38, cat:'asian' },
+  { name:'咖喱饭',       kw:'咖喱饭',   price:30, cat:'asian' },
+
+  /* 西式简餐 */
+  { name:'披萨',         kw:'披萨',     price:55, cat:'western' },
+  { name:'意面',         kw:'意面',     price:45, cat:'western' },
+  { name:'三明治',       kw:'三明治',   price:26, cat:'western' },
+  { name:'牛排',         kw:'牛排',     price:88, cat:'western' },
+
+  /* 轻食沙拉 */
+  { name:'轻食沙拉',     kw:'沙拉',     price:35, cat:'light' },
+  { name:'蒸菜',         kw:'蒸菜',     price:30, cat:'light' },
+  { name:'轻食套餐',     kw:'轻食',     price:32, cat:'light' },
+
+  /* 粥汤炖品 */
+  { name:'白粥配小菜',   kw:'粥店',     price:15, cat:'soup' },
+  { name:'牛肉汤',       kw:'牛肉汤',   price:25, cat:'soup' },
+  { name:'瓦罐汤',       kw:'瓦罐汤',   price:20, cat:'soup' },
+  { name:'炖品',         kw:'炖品',     price:35, cat:'soup' },
+  { name:'羊肉汤',       kw:'羊肉汤',   price:28, cat:'soup' }
+];
+
+/* 主流分类：默认全选，不吃的点掉 */
+var CATS = [
+  { id:'spicy',     name:'川湘辣菜' },
+  { id:'cantonese', name:'粤式烧腊' },
+  { id:'noodle',    name:'面食' },
+  { id:'fen',       name:'粉类' },
+  { id:'rice',      name:'米饭快餐' },
+  { id:'snack',     name:'小吃早点' },
+  { id:'fried',     name:'烧烤炸物' },
+  { id:'hotpot',    name:'火锅麻辣烫' },
+  { id:'asian',     name:'日韩料理' },
+  { id:'western',   name:'西式简餐' },
+  { id:'light',     name:'轻食沙拉' },
+  { id:'soup',      name:'粥汤炖品' }
+];
+
+/* 演示数据 */
+var MOCK_SHOPS = [
+  { name:'老王黄焖鸡米饭', distance:'180', rating:'4.4', cost:'23' },
+  { name:'杨记麻辣烫',     distance:'260', rating:'4.1', cost:'21' },
+  { name:'张记牛肉面',     distance:'320', rating:'4.6', cost:'18' }
+];
+
+/* ===== 状态 ===== */
+var S = {
+  pos:null, locName:'', budget:40,
+  cats: CATS.map(function(c){ return c.id; }),  // 默认全选
+  history:[], current:null, shops:[], busy:false
+};
+
+var $ = function(id){ return document.getElementById(id); };
+var sleep = function(ms){ return new Promise(function(r){ setTimeout(r,ms); }); };
+
+var LS = {
+  get:function(k,d){ try{ var v=localStorage.getItem('cf_'+k); return v?JSON.parse(v):d; }catch(e){ return d; } },
+  set:function(k,v){ try{ localStorage.setItem('cf_'+k, JSON.stringify(v)); }catch(e){} }
+};
+
+var toastTimer=null;
+function toast(msg){
+  var el=$('toast'); el.textContent=msg; el.classList.add('show');
+  clearTimeout(toastTimer); toastTimer=setTimeout(function(){ el.classList.remove('show'); },2100);
+}
+
+/* ===== 高德 SDK ===== */
+var sdkPromise=null;
+function loadAMap(){
+  if (sdkPromise) return sdkPromise;
+  sdkPromise = new Promise(function(resolve,reject){
+    if (window.AMap) return resolve();
+    if (!CONFIG.amapKey) return reject(new Error('NO_KEY'));
+    if (CONFIG.amapSecurity) window._AMapSecurityConfig = { securityJsCode: CONFIG.amapSecurity };
+    var s=document.createElement('script');
+    s.src='https://webapi.amap.com/maps?v=2.0&key='+encodeURIComponent(CONFIG.amapKey)+
+          '&plugin=AMap.PlaceSearch,AMap.Geolocation,AMap.Geocoder';
+    s.onload=function(){ window.AMap ? resolve() : reject(new Error('SDK_EMPTY')); };
+    s.onerror=function(){ reject(new Error('SDK_FAIL')); };
+    document.head.appendChild(s);
+  }).catch(function(e){
+    // 加载失败要清掉缓存，否则之后每次都会复用一个 rejected promise
+    sdkPromise = null;
+    throw e;
+  });
+  return sdkPromise;
+}
+
+/* ===== 位置 ===== */
+function setLocUI(){
+  var dot=$('locDot');
+  if (S.pos) { dot.classList.remove('bad'); $('locText').textContent = S.locName || '当前位置'; }
+  else { dot.classList.add('bad'); $('locText').textContent = '位置未确定，点「切换」'; }
+}
+function savePos(){ LS.set('pos',S.pos); LS.set('locName',S.locName); }
+
+function autoLocate(){
+  return loadAMap().then(function(){
+    return new Promise(function(resolve,reject){
+      var geo=new AMap.Geolocation({ enableHighAccuracy:true, timeout:8000, needAddress:true });
+      geo.getCurrentPosition(function(status,result){
+        if (status==='complete' && result && result.position){
+          S.pos={ lng:result.position.lng, lat:result.position.lat };
+          var ac=result.addressComponent||{};
+          S.locName = ac.district ? ((ac.city||'')+(ac.district||'')) : (result.formattedAddress||'当前位置');
+          if (!S.locName || S.locName.length>22) S.locName='当前位置';
+          savePos(); setLocUI(); resolve();
+        } else { reject(new Error('GEO_FAIL')); }
+      });
+    });
+  });
+}
+
+function geocodePlace(text){
+  return loadAMap().then(function(){
+    return new Promise(function(resolve,reject){
+      var ps=new AMap.PlaceSearch({ pageSize:1, pageIndex:1, extensions:'base' });
+      ps.search(text,function(status,result){
+        var p=result && result.poiList && result.poiList.pois && result.poiList.pois[0];
+        if (status==='complete' && p && p.location){
+          var loc=p.location;
+          var lng = Array.isArray(loc) ? loc[0] : loc.lng;
+          var lat = Array.isArray(loc) ? loc[1] : loc.lat;
+          resolve({ pos:{lng:lng,lat:lat}, name:p.name||text });
+        } else { reject(new Error('NOT_FOUND')); }
+      });
+    });
+  });
+}
+
+function askLocation(){
+  $('inLoc').value=''; $('locMask').hidden=false;
+  setTimeout(function(){ $('inLoc').focus(); },80);
+}
+function locateFlow(){
+  setLocUI();
+  return autoLocate().catch(function(){ askLocation(); });
+}
+
+/* ===== POI 字段（高德 2.0 是顶层 rating/cost） ===== */
+function poiRating(p){
+  if (!p) return 0;
+  var v = (p.rating!==undefined && p.rating!==null && p.rating!=='') ? p.rating : (p.biz_ext && p.biz_ext.rating);
+  var n = parseFloat(v); return isNaN(n)?0:n;
+}
+function poiCost(p){
+  if (!p) return 0;
+  var v = (p.cost!==undefined && p.cost!==null && p.cost!=='') ? p.cost : (p.biz_ext && p.biz_ext.cost);
+  var n = parseFloat(v); return isNaN(n)?0:n;
+}
+function isFood(poi){
+  var t=poi.type||'';
+  return t.indexOf('餐饮')>=0 || t.indexOf('美食')>=0 || t.indexOf('餐厅')>=0;
+}
+function fmtDist(d){
+  var n=parseInt(d,10);
+  if (!n||isNaN(n)) return '';
+  return n<1000 ? n+'m' : (n/1000).toFixed(1)+'km';
+}
+
+/* ===== 搜索 ===== */
+function searchNearby(keyword, radius){
+  return loadAMap().then(function(){
+    return new Promise(function(resolve){
+      var ps=new AMap.PlaceSearch({ pageSize:25, pageIndex:1, extensions:'all', citylimit:false });
+      ps.searchNearBy(keyword,[S.pos.lng,S.pos.lat],radius,function(status,result){
+        var list=(result && result.poiList && result.poiList.pois) || [];
+        resolve(list);
+      });
+    });
+  });
+}
+
+/* 抽一道菜：分类 + 预算 双重过滤 */
+function dishAllowed(d){
+  if (S.cats.indexOf(d.cat) < 0) return false;
+  if (S.budget < 900 && d.price > S.budget*1.15) return false;
+  return true;
+}
+
+function pickDish(){
+  var pool = DISHES.filter(dishAllowed);
+  if (!pool.length) return null;
+  return pool[Math.floor(Math.random()*pool.length)];
+}
+
+/* 按“近 + 便宜 + 评分 + 匹配度”排序，只保留划算的 */
+function rankShops(list, dish){
+  var hist = {};
+  S.history.forEach(function(h){ hist[h.name]=h.ts; });
+
+  var budgetMax = S.budget<900 ? S.budget*1.3 : 9999;
+  var scored = [];
+
+  for (var i=0;i<list.length;i++){
+    var p = list[i];
+    if (!isFood(p)) continue;
+
+    var c = poiCost(p);
+    var r = poiRating(p);
+    var d = parseInt(p.distance,10) || RADIUS;
+
+    // 明显超预算的直接踢掉
+    if (c>0 && c>budgetMax) continue;
+    // 评分太低又偏远的，不推
+    if (r>0 && r<3.0 && d>600) continue;
+
+    var distScore  = Math.max(0, 1 - d/RADIUS);                           // 越近越高
+    var budgetRef  = S.budget<900 ? S.budget*1.2 : 80;
+    var priceScore = c>0 ? Math.max(0, 1 - c/budgetRef) : 0.45;           // 越便宜越高
+    var rateScore  = r>0 ? Math.max(0, Math.min(1,(r-3)/2)) : 0.4;        // 3~5 分
+
+    // 店的真实人均和这道菜的价格水位差太多，说明可能不是卖这个的
+    var matchScore = 0.5;
+    if (c>0 && dish.price>0) {
+      matchScore = Math.max(0, 1 - Math.abs(c - dish.price)/(dish.price*1.8));
+    }
+    // 店名里直接带关键词，相关性强
+    var nameHit = (p.name && p.name.indexOf(dish.kw)>=0) ? 1 : 0;
+
+    var w = distScore*2.4 + priceScore*1.2 + rateScore*1.0 + matchScore*1.2 + nameHit*0.9;
+
+    // 最近 5 天吃过的，压下去
+    var t = hist[p.name];
+    if (t && (Date.now()-t) < 5*86400000) w *= 0.15;
+
+    scored.push({ poi:p, score:w });
+  }
+
+  scored.sort(function(a,b){ return b.score-a.score; });
+  return scored.slice(0,3).map(function(x){ return x.poi; });
+}
+
+/* ===== 展示 ===== */
+function renderShops(shops, dish, emptyText){
+  var box=$('shops'); box.innerHTML='';
+  if (!shops.length){
+    box.innerHTML='<div class="shop-empty">'+(emptyText||'附近没搜到')+'</div>';
+    return;
+  }
+  shops.forEach(function(p){
+    var row=document.createElement('div'); row.className='shop';
+
+    var info=document.createElement('div'); info.className='shop-info';
+    var nm=document.createElement('div'); nm.className='shop-name'; nm.textContent=p.name||'无名小店';
+    var sub=document.createElement('div'); sub.className='shop-sub';
+
+    var r=poiRating(p), c=poiCost(p), d=fmtDist(p.distance);
+    var bits=[];
+    if (r>0) bits.push('★'+r.toFixed(1));
+    if (d) bits.push(d);
+    if (c>0) bits.push('人均 ¥'+Math.round(c));
+    sub.textContent = bits.join(' · ');
+
+    info.appendChild(nm); info.appendChild(sub);
+
+    var go=document.createElement('button'); go.className='shop-go'; go.textContent='导航';
+    go.addEventListener('click', function(e){ e.stopPropagation(); navTo(p); });
+
+    row.appendChild(info); row.appendChild(go);
+    row.addEventListener('click', function(){ navTo(p); });
+    box.appendChild(row);
+  });
+}
+
+function showResult(dish, shops, emptyText){
+  S.current = dish;
+  S.shops = shops || [];
+  var card=$('card');
+  card.hidden=false; $('empty').hidden=true;
+  card.classList.remove('rolling');
+
+  $('dName').textContent = dish.name;
+
+  var metaBits=[];
+  if (dish.price) metaBits.push('参考 ¥'+dish.price);
+  if (S.shops.length) metaBits.push('附近 '+S.shops.length+' 家');
+  $('dMeta').textContent = metaBits.join(' · ');
+
+  renderShops(S.shops, dish, emptyText);
+
+  $('hint').textContent = S.shops.length
+    ? '点店名直接导航过去'
+    : '';
+
+  $('eatBtn').disabled=false;
+  $('eatBtn').textContent='就它了';
+  $('eatBtn').classList.remove('done');
+
+  card.style.animation='none'; void card.offsetWidth; card.style.animation='';
+}
+
+/* ===== 主流程 ===== */
+/* 主流程：先出菜（纯本地，断网也能用），再去补店（联网才有） */
+async function roll(){
+  if (S.busy) return;
+  S.busy=true;
+
+  var btn=$('rollBtn');
+  btn.disabled=true; var oldText=btn.textContent; btn.textContent='…';
+
+  try {
+    var dish = pickDish();
+    if (!dish){
+      toast('筛选太严了，去右上角「筛选」放开几个');
+      return;
+    }
+
+    // 第一步：菜——不依赖网络
+    await animateName(dish.name);
+    showResult(dish, [], '正在找附近的店…');
+
+    // 第二步：店——网络挂了也不影响上面
+    var shops = [];
+    try { shops = await findShops(dish); } catch(e){ console.error(e); }
+
+    if (shops.length){
+      showResult(dish, shops);
+      cacheShops(dish.name, shops);
+    } else {
+      var cached = readCachedShops(dish.name);
+      if (cached && cached.length){
+        showResult(dish, cached, '离线 · 这是上次找到的店');
+      } else {
+        showResult(dish, [], navigator.onLine
+          ? '附近没搜到这家，换一道试试'
+          : '当前离线，先决定吃什么，联网后再看哪家');
+      }
+    }
+
+  } catch(e){
+    console.error(e);
+    toast('出了点问题，再试一次');
+  } finally {
+    btn.textContent=oldText; btn.disabled=false; S.busy=false;
+  }
+}
+
+/* 找店：任何失败都只是返回空，不影响已经出的菜 */
+async function findShops(dish){
+  if (!CONFIG.amapKey){
+    return MOCK_SHOPS.map(function(m){
+      return { name:m.name, distance:m.distance, rating:m.rating, cost:m.cost, type:'餐饮服务;中餐厅' };
+    });
+  }
+  if (navigator.onLine === false) return [];
+
+  if (!S.pos){
+    try { await locateFlow(); } catch(e){}
+    if (!S.pos) return [];
+  }
+
+  var ranked = rankShops(await searchNearby(dish.kw, RADIUS), dish);
+  if (!ranked.length && RADIUS < RADIUS_MAX){
+    ranked = rankShops(await searchNearby(dish.kw, RADIUS_MAX), dish);
+  }
+  return ranked;
+}
+
+/* 店结果缓存：离线时能回放上次找到的店 */
+function cacheShops(name, shops){
+  var c = LS.get('shopCache', {});
+  c[name] = {
+    ts: Date.now(),
+    shops: shops.map(function(p){
+      return { name:p.name, distance:p.distance, rating:p.rating,
+               cost:p.cost, type:p.type, location:p.location };
+    })
+  };
+  var keys = Object.keys(c);
+  if (keys.length > 25){
+    keys.sort(function(a,b){ return (c[b].ts||0) - (c[a].ts||0); });
+    keys.slice(25).forEach(function(k){ delete c[k]; });
+  }
+  LS.set('shopCache', c);
+}
+
+function readCachedShops(name){
+  var c = LS.get('shopCache', {});
+  var item = c[name];
+  return (item && item.shops && item.shops.length) ? item.shops : null;
+}
+
+/* 菜名滚动动画 */
+async function animateName(finalName){
+  var card=$('card');
+  card.hidden=false; $('empty').hidden=true;
+  card.classList.add('rolling');
+
+  var el=$('dName');
+  var pool=DISHES.map(function(d){ return d.name; });
+  var t0=Date.now();
+  while (Date.now()-t0 < 560){
+    el.textContent = pool[Math.floor(Math.random()*pool.length)];
+    await sleep(55+Math.random()*45);
+  }
+  el.textContent=finalName;
+  await sleep(60);
+  card.classList.remove('rolling');
+}
+
+/* ===== 动作 ===== */
+function navTo(poi){
+  var loc=poi.location, lng, lat;
+  if (Array.isArray(loc)){ lng=loc[0]; lat=loc[1]; }
+  else if (loc && typeof loc==='object' && loc.lng!==undefined){ lng=loc.lng; lat=loc.lat; }
+  else if (typeof loc==='string' && loc.indexOf(',')>0){ var a=loc.split(','); lng=a[0]; lat=a[1]; }
+
+  if (lng===undefined||lat===undefined){
+    copyText(poi.name); toast('已复制店名，去地图搜一下');
+    return;
+  }
+  window.open('https://uri.amap.com/marker?position='+lng+','+lat+
+              '&name='+encodeURIComponent(poi.name||'')+
+              '&src=chisha&coordinate=gaode&callnative=1','_blank');
+}
+
+function copyText(text){
+  return new Promise(function(resolve){
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(resolve).catch(legacy);
+    } else legacy();
+
+    function legacy(){
+      var ta=document.createElement('textarea');
+      ta.value=text; ta.setAttribute('readonly','');
+      ta.style.cssText='position:fixed;left:-9999px;top:0;opacity:0';
+      document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0,ta.value.length);
+      var ok=false; try{ ok=document.execCommand('copy'); }catch(e){}
+      document.body.removeChild(ta); resolve(ok);
+    }
+  });
+}
+
+function eatThis(){
+  var d=S.current;
+  if (!d) return;
+  S.history.unshift({ name:d.name, ts:Date.now() });
+  S.history=S.history.slice(0,60);
+  LS.set('history',S.history);
+
+  var btn=$('eatBtn');
+  btn.textContent='✓ 定了'; btn.classList.add('done'); btn.disabled=true;
+  $('sub').textContent='今天就吃「'+d.name+'」，不许反悔';
+  toast('记住了，别反悔 🎉');
+}
+
+/* ===== 事件 ===== */
+$('rollBtn').addEventListener('click', roll);
+$('eatBtn').addEventListener('click', eatThis);
+
+/* ===== 口味管理 ===== */
+var prefDraft = null;
+
+function renderCatOpts(){
+  var box = $('catOpts');
+  box.innerHTML = '';
+  CATS.forEach(function(c){
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'opt' + (prefDraft.indexOf(c.id) >= 0 ? ' on' : '');
+    b.textContent = c.name;
+    b.addEventListener('click', function(){
+      var i = prefDraft.indexOf(c.id);
+      if (i >= 0) prefDraft.splice(i,1);
+      else prefDraft.push(c.id);
+      b.classList.toggle('on', prefDraft.indexOf(c.id) >= 0);
+      updatePrefInfo();
+    });
+    box.appendChild(b);
+  });
+  updatePrefInfo();
+}
+
+function updatePrefInfo(){
+  $('prefInfo').textContent = prefDraft.length + ' / ' + CATS.length;
+}
+
+function updatePrefBadge(){
+  $('prefCount').textContent = S.cats.length;
+}
+
+/* ---- 预算（抽屉内单选） ---- */
+var budgetDraft = 40;
+
+function renderBudgetOpts(){
+  Array.prototype.forEach.call($('budgetOpts').children, function(b){
+    b.classList.toggle('on', parseInt(b.dataset.v,10) === budgetDraft);
+  });
+}
+
+$('budgetOpts').addEventListener('click', function(e){
+  var b = e.target.closest('.opt'); if (!b) return;
+  budgetDraft = parseInt(b.dataset.v,10);
+  renderBudgetOpts();
+});
+
+$('openPref').addEventListener('click', function(){
+  prefDraft = S.cats.slice();
+  budgetDraft = S.budget;
+  renderCatOpts();
+  renderBudgetOpts();
+  $('prefMask').hidden = false;
+});
+$('prefCancel').addEventListener('click', function(){ $('prefMask').hidden = true; });
+$('catAll').addEventListener('click', function(){
+  prefDraft = CATS.map(function(c){ return c.id; });
+  renderCatOpts();
+});
+$('catNone').addEventListener('click', function(){
+  prefDraft = [];
+  renderCatOpts();
+});
+$('prefSave').addEventListener('click', function(){
+  if (!prefDraft.length){ toast('至少留一个分类'); return; }
+  S.cats = prefDraft.slice();
+  S.budget = budgetDraft;
+  LS.set('cats', S.cats);
+  LS.set('budget', S.budget);
+  updatePrefBadge();
+  $('prefMask').hidden = true;
+  toast('筛选已更新');
+});
+
+$('relocate').addEventListener('click', function(){
+  if (!CONFIG.amapKey){ askLocation(); return; }
+  autoLocate().then(function(){ toast('位置已更新：'+S.locName); })
+              .catch(function(){ askLocation(); });
+});
+
+$('openSet').addEventListener('click', function(){
+  $('inKey').value=CONFIG.amapKey||''; $('inSec').value=CONFIG.amapSecurity||'';
+  $('setMask').hidden=false;
+});
+$('setCancel').addEventListener('click', function(){ $('setMask').hidden=true; });
+$('setSave').addEventListener('click', function(){
+  var k=$('inKey').value.trim(), s=$('inSec').value.trim();
+  CONFIG.amapKey=k; CONFIG.amapSecurity=s;
+  LS.set('amap',{key:k,sec:s});
+  $('setMask').hidden=true; sdkPromise=null;
+  $('demoNote').hidden=!!k;
+  toast(k?'已保存':'已清空');
+});
+
+$('locCancel').addEventListener('click', function(){ $('locMask').hidden=true; });
+$('locSave').addEventListener('click', function(){
+  var v=$('inLoc').value.trim();
+  if (!v){ toast('先填个地标'); return; }
+  if (!CONFIG.amapKey){
+    S.pos={lng:116.48,lat:39.99}; S.locName=v; savePos(); setLocUI();
+    $('locMask').hidden=true; toast('演示模式已记录');
+    return;
+  }
+  var btn=this; btn.disabled=true;
+  geocodePlace(v).then(function(r){
+    S.pos=r.pos; S.locName=r.name; savePos(); setLocUI();
+    $('locMask').hidden=true; toast('位置已设为：'+r.name);
+  }).catch(function(){
+    toast('没找到这个地标，换一个试试');
+  }).then(function(){ btn.disabled=false; });
+});
+$('inLoc').addEventListener('keydown', function(e){ if (e.key==='Enter') $('locSave').click(); });
+
+/* ===== 启动 ===== */
+function boot(){
+  var saved=LS.get('amap',null);
+  if (saved && saved.key){ CONFIG.amapKey=saved.key; CONFIG.amapSecurity=saved.sec||''; }
+  $('demoNote').hidden=!!CONFIG.amapKey;
+
+  S.budget=LS.get('budget',40);
+  S.history=LS.get('history',[]);
+
+  var savedCats=LS.get('cats',null);
+  if (savedCats && savedCats.length){
+    var valid=savedCats.filter(function(id){
+      return CATS.some(function(c){ return c.id===id; });
+    });
+    if (valid.length) S.cats=valid;
+  }
+  updatePrefBadge();
+
+  var p=LS.get('pos',null);
+  if (p && p.lng){ S.pos=p; S.locName=LS.get('locName','当前位置'); setLocUI(); }
+  else if (CONFIG.amapKey){ setLocUI(); autoLocate().catch(function(){ setLocUI(); }); }
+  else { S.pos={lng:116.48,lat:39.99}; S.locName='演示位置'; setLocUI(); }
+}
+
+boot();
+
+/* 离线缓存（需要 https 或 localhost；file:// 打开会自动跳过） */
+if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0){
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('./sw.js').catch(function(){});
+  });
+}
+
+/* 调试：URL 带 #auto 用固定坐标自动摇一次；#pref 直接打开口味面板 */
+if (location.hash==='#auto'){
+  S.pos={lng:116.4810,lat:39.9962}; S.locName='望京SOHO（测试）'; setLocUI();
+  setTimeout(function(){ roll(); },400);
+}
+if (location.hash==='#pref'){
+  setTimeout(function(){ $('openPref').click(); },300);
+}
+</script>
+</body>
+</html>
